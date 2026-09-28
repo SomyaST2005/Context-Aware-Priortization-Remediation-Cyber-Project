@@ -1,0 +1,108 @@
+# ============================================================
+# Python
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / coverage / tooling caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+
+# ============================================================
+# Environment / secrets
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# Local databases
+# ============================================================
+
+*.db
+*.sqlite
+*.sqlite3
+
+# Project-specific SQLite database
+cybersecurity.db
+
+# ============================================================
+# IDE / Editor
+# ============================================================
+
+.vscode/
+.idea/
+*.iml
+
+# VS Code local history
+.history/
+
+# ============================================================
+# Operating system
+# ============================================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Logs / temporary files
+# ============================================================
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Local scripts / generated verification artifacts
+# ============================================================
+
+verify_graph.py
+
+# ============================================================
+# Alembic temporary / generated artifacts
+# ============================================================
+
+backend/alembic/__pycache__/
+backend/alembic/versions/__pycache__/
+backend/alembic/env.py.bak
+
+# ============================================================
+# Documentation
+# ============================================================
+# Project documentation is maintained locally and is not part
+# of the source-code repository.
+
+*.md
+
+# Keep the main repository README if desired.
+# Remove this exception if you want ALL Markdown ignored.
+!README.md
