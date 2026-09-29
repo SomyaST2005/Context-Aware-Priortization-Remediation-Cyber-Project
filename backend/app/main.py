@@ -4,15 +4,26 @@ FastAPI application entrypoint for the cybersecurity remediation prioritization 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional, Literal
 import networkx as nx
 
-from backend.app.models.database import Base, Scenario
-from backend.app.schemas.scenario import ScenarioCreate, ScenarioResponse, ScenarioUpdate
+from backend.app.models.database import (
+    Base,
+    Scenario,
+    Asset,
+    Finding,
+    Edge,
+)
 from backend.app.schemas.asset import AssetResponse
 from backend.app.schemas.finding import FindingResponse
 from backend.app.schemas.edge import EdgeResponse
+from backend.app.schemas.scenario import ScenarioCreate, ScenarioResponse, ScenarioUpdate
 from backend.app.graph.builder import build_canonical_graph, CanonicalGraphBuilder
+from backend.app.analysis.path_analysis import find_attack_paths, get_shortest_path, get_cheapest_path
+from backend.app.analysis.blast_radius import compute_blast_radius
+from backend.app.analysis.chokepoint import compute_chokepoints
+from backend.app.schemas.blast_radius import BlastRadiusResponse
+from backend.app.schemas.chokepoint import ChokepointResponse
 from backend.app.core.database import get_db, engine
 
 # Create database tables
@@ -176,6 +187,158 @@ async def validate_scenario_graph(scenario_id: str, db: Session = Depends(get_db
         )
 
 
+# Attack path endpoints
+@app.get("/api/scenarios/{scenario_id}/attack-paths", tags=["Attack Paths"])
+async def get_attack_paths(
+    scenario_id: str,
+path_mode: Literal["all", "shortest", "cheapest"] = "all",
+    max_depth: int = 10,
+    max_paths: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Get attack paths from entry points to crown jewels for a scenario.
+    """
+    # Verify scenario exists
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    
+    # Build the graph
+    graph = build_canonical_graph(db, scenario_id)
+    
+    # Get paths based on mode
+    if path_mode == "shortest":
+        path = get_shortest_path(graph, max_depth=max_depth)
+        paths = [path] if path else []
+    elif path_mode == "cheapest":
+        path = get_cheapest_path(graph, max_depth=max_depth)
+        paths = [path] if path else []
+    else:  # "all" or any other value defaults to all
+        paths = find_attack_paths(graph, max_depth=max_depth, max_paths=max_paths)
+    
+    # Convert to list of dictionaries
+    return [path.to_dict() for path in paths if path is not None]
+
+
+# Blast radius endpoints
+@app.get(
+    "/api/scenarios/{scenario_id}/blast-radius/{source_asset_id}",
+    response_model=BlastRadiusResponse,
+    tags=["Blast Radius"],
+)
+async def get_blast_radius(
+    scenario_id: str,
+    source_asset_id: str,
+    max_depth: int = 10,
+    db: Session = Depends(get_db),
+):
+    """
+    Compute the blast radius from a compromised asset in a scenario.
+    """
+    # Verify scenario exists
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    # Build the graph
+    graph = build_canonical_graph(db, scenario_id)
+
+    # Compute blast radius
+    try:
+        result = compute_blast_radius(
+            graph,
+            source_asset_id,
+            max_depth=max_depth,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result.to_dict()
+
+
+# Chokepoint endpoints
+@app.get(
+    "/api/scenarios/{scenario_id}/chokepoints",
+    response_model=ChokepointResponse,
+    tags=["Chokepoint"],
+)
+async def get_chokepoints(
+    scenario_id: str,
+    max_depth: int = 10,
+    max_paths: int = 100,
+    entity_type: Literal["all", "asset", "finding"] = "all",
+    min_score: float = 0.0,
+    limit: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Compute chokepoints from attack paths in a scenario.
+    
+    Chokepoints are actionable entities (assets and findings) whose remediation
+    would eliminate a significant amount of attack-path feasibility between
+    entry points and crown jewels.
+    
+    Query Parameters:
+    - max_depth: Maximum attack path depth (default: 10)
+    - max_paths: Maximum attack paths to analyze (default: 100)
+    - entity_type: Entity types to analyze - "all", "asset", or "finding" (default: "all")
+    - min_score: Minimum chokepoint score threshold for filtering (default: 0.0)
+    - limit: Maximum number of chokepoints to return (default: no limit)
+    """
+    # Verify scenario exists
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    # Validate query parameters
+    if max_depth < 0:
+        raise HTTPException(status_code=400, detail="max_depth must be >= 0")
+    if max_paths < 0:
+        raise HTTPException(status_code=400, detail="max_paths must be >= 0")
+    if limit is not None and limit < 0:
+        raise HTTPException(status_code=400, detail="limit must be >= 0")
+    if not (0.0 <= min_score <= 1.0):
+        raise HTTPException(status_code=400, detail="min_score must be between 0.0 and 1.0")
+
+    # Build the graph
+    graph = build_canonical_graph(db, scenario_id)
+
+    # Compute chokepoints
+    try:
+        result = compute_chokepoints(
+            graph,
+            max_depth=max_depth,
+            max_paths=max_paths,
+            entity_types=entity_type,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Apply API-level filtering
+    chokepoints = result.chokepoints
+    
+    # Filter by min_score
+    if min_score > 0.0:
+        chokepoints = [c for c in chokepoints if c.chokepoint_score >= min_score]
+    
+    # Apply limit
+    if limit is not None:
+        chokepoints = chokepoints[:limit]
+
+    # Build response preserving original metadata
+    response = ChokepointResponse(
+        chokepoints=chokepoints,
+        total_entities_analyzed=result.total_entities_analyzed,
+        max_chokepoint_score=result.max_chokepoint_score,
+        total_attack_paths_analyzed=result.total_attack_paths_analyzed,
+        max_depth_used=result.max_depth_used,
+        max_paths_used=result.max_paths_used,
+    )
+
+    return response
+
+
 # Basic asset endpoints (for testing/seeding)
 @app.get("/api/scenarios/{scenario_id}/assets", response_model=List[AssetResponse], tags=["Assets"])
 async def get_scenario_assets(scenario_id: str, db: Session = Depends(get_db)):
@@ -186,8 +349,9 @@ async def get_scenario_assets(scenario_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Scenario not found")
     
     # For now, return all assets (in future, we might filter by scenario)
-    assets = db.query(Asset).all()
+    assets = db.query(Asset).filter(Asset.scenario_id == scenario_id).all()
     return assets
+
 
 
 # Basic finding endpoints (for testing/seeding)
@@ -200,8 +364,9 @@ async def get_scenario_findings(scenario_id: str, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Scenario not found")
     
     # For now, return all findings (in future, we might filter by scenario)
-    findings = db.query(Finding).all()
+    findings = db.query(Finding).filter(Finding.scenario_id == scenario_id).all()
     return findings
+
 
 
 # Basic edge endpoints (for testing/seeding)
@@ -214,5 +379,6 @@ async def get_scenario_edges(scenario_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Scenario not found")
     
     # For now, return all edges (in future, we might filter by scenario)
-    edges = db.query(Edge).all()
+    edges = db.query(Edge).filter(Edge.scenario_id == scenario_id).all()
     return edges
+

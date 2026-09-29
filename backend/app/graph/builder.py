@@ -1,4 +1,4 @@
-﻿"""
+"""
 Canonical graph builder service for constructing NetworkX MultiDiGraph from domain models.
 """
 import networkx as nx
@@ -132,11 +132,11 @@ class CanonicalGraphBuilder:
             probability = edge.probability
             
             # If not explicitly set, use defaults from edge semantics
-            if traversal_cost is 0.0:  # Assuming 0.0 means not set
+            if traversal_cost == 0.0:  # Assuming 0.0 means not set
                 edge_type_enum = EdgeType(edge.edge_type)
                 traversal_cost = EDGE_TYPE_BASE_COSTS.get(edge_type_enum, 1.0)
             
-            if probability is 0.0:  # Assuming 0.0 means not set
+            if probability == 0.0:  # Assuming 0.0 means not set
                 edge_type_enum = EdgeType(edge.edge_type)
                 probability = EDGE_TYPE_PROBABILITIES.get(edge_type_enum, 0.5)
             
