@@ -25,6 +25,17 @@ from backend.app.analysis.chokepoint import compute_chokepoints
 from backend.app.schemas.blast_radius import BlastRadiusResponse
 from backend.app.schemas.chokepoint import ChokepointResponse
 from backend.app.core.database import get_db, engine
+from backend.app.analysis.prioritization import OrderingPolicy, compute_prioritization
+from backend.app.schemas.prioritization import PrioritizationResponse
+from backend.app.analysis.remediation_simulation import (
+    resolve_simulation_action,
+    run_simulation,
+)
+from backend.app.models.database import RemediationAction
+from backend.app.schemas.remediation_simulation import (
+    SimulationRequest,
+    SimulationResponse,
+)
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -381,4 +392,214 @@ async def get_scenario_edges(scenario_id: str, db: Session = Depends(get_db)):
     # For now, return all edges (in future, we might filter by scenario)
     edges = db.query(Edge).filter(Edge.scenario_id == scenario_id).all()
     return edges
+
+
+@app.get(
+    "/api/scenarios/{scenario_id}/prioritization",
+    response_model=PrioritizationResponse,
+    tags=["Prioritization"],
+)
+async def get_prioritization(
+    scenario_id: str,
+    max_depth: int = 10,
+    max_paths: int = 100,
+    min_operational_score: float = 0.0,
+    limit: Optional[int] = None,
+    sort_by: Literal[
+        "operational_rank",
+        "chokepoint_score",
+        "cvss",
+        "feasibility",
+        "asset_criticality",
+    ] = "operational_rank",
+    crown_jewel_first: bool = True,
+    entry_point_first: bool = True,
+    kev_tier: bool = True,
+    chokepoint_weight: float = 1.0,
+    feasibility_weight: float = 1.0,
+    cvss_weight: float = 1.0,
+    epss_weight: float = 0.5,
+    asset_criticality_weight: float = 0.5,
+    tiebreaker: Literal["finding_id", "asset_id"] = "finding_id",
+    db: Session = Depends(get_db),
+) -> PrioritizationResponse:
+    """Return contextual prioritization profiles for all active findings."""
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    if max_depth < 0:
+        raise HTTPException(status_code=400, detail="max_depth must be >= 0")
+    if max_paths < 0:
+        raise HTTPException(status_code=400, detail="max_paths must be >= 0")
+    if min_operational_score < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="min_operational_score must be >= 0",
+        )
+    if limit is not None and limit < 0:
+        raise HTTPException(status_code=400, detail="limit must be >= 0")
+
+    weight_values = {
+        "chokepoint_weight": chokepoint_weight,
+        "feasibility_weight": feasibility_weight,
+        "cvss_weight": cvss_weight,
+        "epss_weight": epss_weight,
+        "asset_criticality_weight": asset_criticality_weight,
+    }
+    for name, value in weight_values.items():
+        if value < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{name} must be >= 0",
+            )
+
+    try:
+        policy = OrderingPolicy(
+            crown_jewel_first=crown_jewel_first,
+            entry_point_first=entry_point_first,
+            kev_tier=kev_tier,
+            chokepoint_weight=chokepoint_weight,
+            feasibility_weight=feasibility_weight,
+            cvss_weight=cvss_weight,
+            epss_weight=epss_weight,
+            asset_criticality_weight=asset_criticality_weight,
+            tiebreaker=tiebreaker,
+        )
+        graph = build_canonical_graph(db, scenario_id)
+        all_results = compute_prioritization(
+            graph,
+            max_depth=max_depth,
+            max_paths=max_paths,
+            policy=policy,
+            scenario_id=scenario_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Filter AFTER analysis. The operational score itself is not recalculated.
+    total_findings = len(all_results)
+    results = [
+        result
+        for result in all_results
+        if result.operational_score >= min_operational_score
+    ]
+
+    # Presentation-only sorting. operational_rank remains unchanged.
+    if sort_by != "operational_rank":
+        sort_keys = {
+            "chokepoint_score": lambda r: (-r.profile.finding_chokepoint_score, r.profile.finding_id),
+            "cvss": lambda r: (-r.profile.cvss_normalized, r.profile.finding_id),
+            "feasibility": lambda r: (
+                -r.profile.max_path_feasibility_normalized,
+                r.profile.finding_id,
+            ),
+            "asset_criticality": lambda r: (
+                -r.profile.asset_criticality_normalized,
+                r.profile.finding_id,
+            ),
+        }
+        results = sorted(results, key=sort_keys[sort_by])
+
+    if limit is not None:
+        results = results[:limit]
+
+    return PrioritizationResponse(
+        scenario_id=scenario_id,
+        total_findings=total_findings,
+        returned_findings=len(results),
+        max_depth_used=max_depth,
+        max_paths_used=max_paths,
+        min_operational_score=min_operational_score,
+        sort_by=sort_by,
+        policy={
+            "crown_jewel_first": policy.crown_jewel_first,
+            "entry_point_first": policy.entry_point_first,
+            "kev_tier": policy.kev_tier,
+            "chokepoint_weight": policy.chokepoint_weight,
+            "feasibility_weight": policy.feasibility_weight,
+            "cvss_weight": policy.cvss_weight,
+            "epss_weight": policy.epss_weight,
+            "asset_criticality_weight": policy.asset_criticality_weight,
+            "tiebreaker": policy.tiebreaker,
+        },
+        items=[result.to_dict() for result in results],
+    )
+
+
+@app.post(
+    "/api/scenarios/{scenario_id}/simulate-remediation",
+    response_model=SimulationResponse,
+    tags=["Simulation"],
+)
+async def simulate_remediation(
+    scenario_id: str,
+    request: SimulationRequest,
+    db: Session = Depends(get_db),
+) -> SimulationResponse:
+    """Run deterministic what-if remediation simulation (no persistent mutation)."""
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    if not request.remediation_action_ids:
+        raise HTTPException(
+            status_code=400, detail="At least one remediation action is required"
+        )
+    if request.max_depth < 0:
+        raise HTTPException(status_code=400, detail="max_depth must be >= 0")
+    if request.max_paths < 0:
+        raise HTTPException(status_code=400, detail="max_paths must be >= 0")
+
+    try:
+        policy = OrderingPolicy(
+            crown_jewel_first=request.crown_jewel_first,
+            entry_point_first=request.entry_point_first,
+            kev_tier=request.kev_tier,
+            chokepoint_weight=request.chokepoint_weight,
+            feasibility_weight=request.feasibility_weight,
+            cvss_weight=request.cvss_weight,
+            epss_weight=request.epss_weight,
+            asset_criticality_weight=request.asset_criticality_weight,
+            tiebreaker=request.tiebreaker,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    rows = (
+        db.query(RemediationAction)
+        .filter(RemediationAction.id.in_(request.remediation_action_ids))
+        .all()
+    )
+    found_ids = {str(row.id) for row in rows}
+    for requested_id in request.remediation_action_ids:
+        if requested_id not in found_ids:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Remediation action '{requested_id}' not found",
+            )
+
+    try:
+        actions = [
+            resolve_simulation_action(row, scenario_id)
+            for row in sorted(rows, key=lambda r: request.remediation_action_ids.index(str(r.id)))
+        ]
+        # Preserve request order including duplicates for fail-fast semantics.
+        ordered: list = []
+        by_id = {a.action_id: a for a in actions}
+        for requested_id in request.remediation_action_ids:
+            ordered.append(by_id[requested_id])
+        graph = build_canonical_graph(db, scenario_id)
+        result = run_simulation(
+            graph,
+            ordered,
+            max_depth=request.max_depth,
+            max_paths=request.max_paths,
+            policy=policy,
+            scenario_id=scenario_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return SimulationResponse(**result.to_dict())
 
