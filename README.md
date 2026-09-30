@@ -11,12 +11,12 @@ This project is a cybersecurity analytics and decision-support system that model
 ## Key Features
 
 - **Canonical Security Graph**: Directed graph model of assets, vulnerabilities, and attack transitions (MultiDiGraph) - implemented
-- **Attack Path Discovery**: Multi-hop pathfinding from entry points to crown jewels - planned
-- **Contextual Risk Scoring**: Multi-factor risk model incorporating CVSS, exploitability, exposure, asset criticality, path participation, crown jewel impact, and blast radius
-- **Contribution/Bottleneck Analysis**: Identifies critical vulnerabilities and choke points in attack paths - planned
-- **Blast Radius Analysis**: Quantifies downstream impact of asset compromise
-- **What-If Remediation Simulation**: Deterministic simulation of remediation effects on immutable baseline graph
-- **Resource-Constrained Optimization**: Budget-aware remediation selection using knapsack/greedy algorithms
+- **Attack Path Discovery**: Multi-hop pathfinding from entry points to crown jewels - implemented
+- **Contextual Risk Scoring**: Multi-factor contextual evidence (PriorityProfile) with policy-specific operational ordering - implemented; no universal score by design
+- **Contribution/Bottleneck Analysis**: Chokepoint analysis identifies critical asset/finding bottlenecks in attack paths - implemented (no separate contribution.py module)
+- **Blast Radius Analysis**: Quantifies downstream impact of asset compromise - implemented
+- **What-If Remediation Simulation**: Deterministic simulation of remediation effects on immutable baseline graph - implemented
+- **Resource-Constrained Optimization**: Exact simulation-evaluated subset selection under budget (O1/O2 objective, 12-action ceiling) - implemented
 - **Interactive Visualization**: React frontend with Cytoscape.js graph visualization - planned
 - **Explainable AI**: Structured explanations for all risk scores and remediation impacts - planned
 
@@ -25,7 +25,7 @@ This project is a cybersecurity analytics and decision-support system that model
 - **Backend**: Python 3.13+, FastAPI, Pydantic v2, SQLAlchemy 2.0, SQLite, Alembic
 - **Graph Engine**: NetworkX 3.4+ (deterministic, in-memory, MultiDiGraph)
 - **Frontend**: React 18/19, TypeScript, Vite, Cytoscape.js, Tailwind CSS
-- **Testing**: Pytest (backend), Jest/Vitest (frontend planned)
+- **Testing**: Pytest backend suite covering graph, pathfinding, blast radius, chokepoints, prioritization, simulation, and optimization (`backend/tests/`)
 
 ## Getting Started
 
