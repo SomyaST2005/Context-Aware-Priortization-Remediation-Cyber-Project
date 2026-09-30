@@ -17,6 +17,7 @@ from backend.app.models.database import (
 from backend.app.schemas.asset import AssetResponse
 from backend.app.schemas.finding import FindingResponse
 from backend.app.schemas.edge import EdgeResponse
+from backend.app.schemas.remediation import RemediationActionResponse
 from backend.app.schemas.scenario import ScenarioCreate, ScenarioResponse, ScenarioUpdate
 from backend.app.graph.builder import build_canonical_graph, CanonicalGraphBuilder
 from backend.app.analysis.path_analysis import find_attack_paths, get_shortest_path, get_cheapest_path
@@ -406,6 +407,21 @@ async def get_scenario_edges(scenario_id: str, db: Session = Depends(get_db)):
     # For now, return all edges (in future, we might filter by scenario)
     edges = db.query(Edge).filter(Edge.scenario_id == scenario_id).all()
     return edges
+
+
+# Remediation action listing (read-only; mirrors the assets/findings/edges
+# pattern so the frontend can discover available action IDs for simulation
+# and optimization requests. No analysis logic lives here.)
+@app.get("/api/scenarios/{scenario_id}/remediation-actions", response_model=List[RemediationActionResponse], tags=["Remediation"])
+async def get_scenario_remediation_actions(scenario_id: str, db: Session = Depends(get_db)):
+    """Get all remediation actions in a scenario."""
+    # Verify scenario exists
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    actions = db.query(RemediationAction).filter(RemediationAction.scenario_id == scenario_id).all()
+    return actions
 
 
 @app.get(
