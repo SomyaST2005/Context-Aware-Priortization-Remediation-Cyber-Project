@@ -84,7 +84,7 @@ export function ChokepointsPage() {
           <Select
             label="Entity type"
             value={entityType}
-            onChange={(e) => setEntityType(e.target.value as 'all' | 'asset' | 'finding')}
+            onValueChange={(value) => setEntityType(value as 'all' | 'asset' | 'finding')}
             options={[
               { value: 'all', label: 'All' },
               { value: 'asset', label: 'Assets' },

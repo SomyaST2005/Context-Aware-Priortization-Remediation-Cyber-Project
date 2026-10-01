@@ -135,7 +135,7 @@ export function FindingsPage() {
           />
           <Select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onValueChange={(value) => setFilterStatus(value)}
             options={[
               { value: 'all', label: 'All Statuses' },
               ...statuses.map((s) => ({ value: s, label: s.replace('_', ' ').toUpperCase() })),

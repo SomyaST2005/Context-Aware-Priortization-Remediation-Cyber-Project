@@ -128,7 +128,7 @@ export function AssetsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
+            onValueChange={(value) => setFilterType(value)}
             options={[
               { value: 'all', label: 'All Types' },
               ...types.map((t) => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
@@ -138,7 +138,7 @@ export function AssetsPage() {
           />
           <Select
             value={filterZone}
-            onChange={(e) => setFilterZone(e.target.value)}
+            onValueChange={(value) => setFilterZone(value)}
             options={[
               { value: 'all', label: 'All Zones' },
               ...zones.map((z) => ({ value: z, label: z.replace('_', ' ').toUpperCase() })),

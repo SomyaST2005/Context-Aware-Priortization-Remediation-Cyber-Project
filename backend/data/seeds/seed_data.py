@@ -261,6 +261,7 @@ def create_seed_data():
     except Exception as e:
         db.rollback()
         print(f"Error creating seed data: {e}")
+        raise
     finally:
         db.close()
 

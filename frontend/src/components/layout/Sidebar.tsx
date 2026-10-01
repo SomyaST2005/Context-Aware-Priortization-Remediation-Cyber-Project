@@ -6,17 +6,32 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { path: '/', label: 'Dashboard', icon: HomeIcon },
-  { path: '/scenario', label: 'Scenario', icon: DatabaseIcon },
-  { path: '/assets', label: 'Assets', icon: ServerIcon },
-  { path: '/findings', label: 'Findings', icon: BugIcon },
-  { path: '/prioritization', label: 'Prioritization', icon: BarChartIcon },
-  { path: '/attack-paths', label: 'Attack Paths', icon: GitBranchIcon },
-  { path: '/blast-radius', label: 'Blast Radius', icon: TargetIcon },
-  { path: '/chokepoints', label: 'Chokepoints', icon: LinkIcon },
-  { path: '/remediation', label: 'Remediation', icon: ShieldIcon },
-  { path: '/optimization', label: 'Optimization', icon: ZapIcon },
-  { path: '/explanation', label: 'AI Explanation', icon: BotIcon },
+  { group: 'OVERVIEW', items: [{ path: '/', label: 'Dashboard', icon: HomeIcon }] },
+  {
+    group: 'ANALYSIS',
+    items: [
+      { path: '/scenario', label: 'Scenario', icon: DatabaseIcon },
+      { path: '/assets', label: 'Assets', icon: ServerIcon },
+      { path: '/findings', label: 'Findings', icon: BugIcon },
+      { path: '/prioritization', label: 'Prioritization', icon: BarChartIcon },
+      { path: '/attack-paths', label: 'Attack Paths', icon: GitBranchIcon },
+      { path: '/blast-radius', label: 'Blast Radius', icon: TargetIcon },
+      { path: '/chokepoints', label: 'Chokepoints', icon: LinkIcon },
+    ],
+  },
+  {
+    group: 'REMEDIATION',
+    items: [
+      { path: '/remediation', label: 'Remediation', icon: ShieldIcon },
+      { path: '/optimization', label: 'Optimization', icon: ZapIcon },
+    ],
+  },
+  {
+    group: 'INTELLIGENCE',
+    items: [
+      { path: '/explanation', label: 'AI Explanation', icon: BotIcon },
+    ],
+  },
 ];
 
 // Icons
@@ -135,36 +150,43 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
               </svg>
             </div>
-            <span className="text-lg font-semibold text-[var(--color-text-primary)]">CyberSec Dashboard</span>
+            <span className="text-lg font-semibold text-[var(--color-text-primary)]">RiskPath</span>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" role="navigation" aria-label="Main">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={({ isActive: active }) =>
-                    `${active
-                      ? 'sidebar-link bg-[var(--color-accent-bg)] text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]'
-                      : 'sidebar-link'
-                    } ${item.path === '/' && location.pathname !== '/' ? 'text-[var(--color-text-muted)]' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <item.icon aria-hidden="true" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
+            {navigation.map((group) => (
+              <div key={group.group}>
+                <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  {group.group}
+                </p>
+                {group.items.map((item) => {
+                  const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={onClose}
+                      className={({ isActive: active }) =>
+                        `${active
+                          ? 'sidebar-link bg-[var(--color-accent-bg)] text-[var(--color-accent)] border-l-2 border-[var(--color-accent)]'
+                          : 'sidebar-link'
+                        } ${item.path === '/' && location.pathname !== '/' ? 'text-[var(--color-text-muted)]' : ''}`}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      <item.icon aria-hidden="true" />
+                      {item.label}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* Footer */}
           <div className="p-4 border-t border-[var(--color-border-primary)]">
             <p className="text-xs text-[var(--color-text-muted)] text-center">
-              v0.1.0 &nbsp;|&nbsp; AI-Assisted Remediation Prioritization
+              RiskPath &nbsp;|&nbsp; Security Decision Platform
             </p>
           </div>
         </div>

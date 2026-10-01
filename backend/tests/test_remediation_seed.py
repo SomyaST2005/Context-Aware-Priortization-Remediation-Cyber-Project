@@ -3,11 +3,13 @@
 Idempotent by construction: ensure_remediation_seed_data() never duplicates.
 Does not delete seed rows (they are permanent demo data).
 """
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.core.database import SessionLocal
 from backend.data.seeds.seed_data import (
     _remediation_seed_rows,
+    create_seed_data,
     ensure_remediation_seed_data,
 )
 from backend.app.main import app
@@ -86,5 +88,61 @@ def test_seed_entities_are_scenario_scoped():
             rows = db.query(model).filter(model.scenario_id == SID).all()
             assert len(rows) > 0, f"{model.__name__} has no rows for {SID}"
             assert db.query(model).filter(model.scenario_id.is_(None)).count() == 0
+    finally:
+        db.close()
+
+
+def test_seed_failure_propagates_after_rollback(monkeypatch):
+    """A genuine seed/database failure must raise, never be swallowed."""
+    import backend.data.seeds.seed_data as seed_mod
+
+    rolled_back = []
+
+    class FailingSession:
+        def query(self, *args, **kwargs):
+            class _Q:
+                def first(self):
+                    return None
+
+                def filter(self, *a, **k):
+                    return self
+
+            return _Q()
+
+        def add(self, *args):
+            pass
+
+        def add_all(self, *args):
+            pass
+
+        def commit(self):
+            raise RuntimeError("boom")
+
+        def rollback(self):
+            rolled_back.append(True)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(seed_mod, "SessionLocal", lambda: FailingSession())
+    with pytest.raises(RuntimeError, match="boom"):
+        seed_mod.create_seed_data()
+    assert rolled_back == [True]
+
+
+def test_seed_success_counts_and_idempotent_reseed():
+    """Fresh seed succeeds; second seed changes nothing; counts stay correct."""
+    from backend.app.models.database import Asset, Edge, Finding
+
+    create_seed_data()
+    create_seed_data()
+    db = SessionLocal()
+    try:
+        assert db.query(Asset).filter(Asset.scenario_id == SID).count() == 3
+        assert db.query(Finding).filter(Finding.scenario_id == SID).count() == 2
+        assert db.query(Edge).filter(Edge.scenario_id == SID).count() == 5
+        actions = db.query(RemediationAction).filter(RemediationAction.scenario_id == SID).all()
+        assert len(actions) == 4
+        assert {a.id for a in actions} == {r.id for r in _remediation_seed_rows()}
     finally:
         db.close()

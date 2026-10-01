@@ -23,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
-          className={`input ${className} ${error ? 'border-[var(--color-danger)] focus:ring-[var(--color-danger)]' : ''}`}
+          className={`input ${className} ${error ? 'input-error' : ''}`}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={`${error ? errorId : ''} ${helperText ? helperId : ''}`.trim() || undefined}
           {...props}

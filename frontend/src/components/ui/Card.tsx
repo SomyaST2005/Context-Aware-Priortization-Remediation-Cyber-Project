@@ -26,3 +26,11 @@ export const CardBody = forwardRef<HTMLDivElement, CardProps>(({ className = '',
 ));
 
 CardBody.displayName = 'CardBody';
+
+export const CardFooter = forwardRef<HTMLDivElement, CardProps>(({ className = '', children, ...props }, ref) => (
+  <div ref={ref} className={`card-footer ${className}`} {...props}>
+    {children}
+  </div>
+));
+
+CardFooter.displayName = 'CardFooter';

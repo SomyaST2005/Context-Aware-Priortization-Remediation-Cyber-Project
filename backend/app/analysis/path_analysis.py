@@ -3,6 +3,7 @@ Attack path analysis module for finding paths from entry points to crown jewels
 in a NetworkX MultiDiGraph.
 """
 from typing import List, Dict, Any, Optional, Tuple
+import heapq
 import networkx as nx
 from dataclasses import dataclass, field
 @dataclass
@@ -124,31 +125,139 @@ def find_attack_paths(
     all_paths.sort(key=lambda p: (p.hop_count, p.total_traversal_cost, p.id))
     # Trim to max_paths if we have more (though we already limited in the loop)
     return all_paths[:max_paths]
+def _entry_points_and_crowns(
+    graph: nx.MultiDiGraph,
+) -> Tuple[List[str], set]:
+    """Entry points (graph node order) and crown jewels (lookup set)."""
+    entry_points = [
+        node for node, data in graph.nodes(data=True)
+        if data.get('is_entry_point', False)
+    ]
+    crown_jewels = {
+        node for node, data in graph.nodes(data=True)
+        if data.get('is_crown_jewel', False)
+    }
+    return entry_points, crown_jewels
+
+
+def _ordered_extensions(
+    graph: nx.MultiDiGraph,
+    path_nodes: Tuple[str, ...],
+    visited: set,
+):
+    """Yield (neighbor, edge_key, edge_data) in deterministic order.
+
+    Mirrors the traversal order of find_attack_paths: neighbors sorted,
+    parallel edges in sorted key order, cycle-safe (no node revisited).
+    """
+    current_node = path_nodes[-1]
+    for neighbor in sorted(graph.neighbors(current_node)):
+        if neighbor in visited:
+            continue
+        edge_data_dict = graph.get_edge_data(current_node, neighbor)
+        if edge_data_dict is None:
+            continue
+        for edge_key in sorted(edge_data_dict.keys()):
+            yield neighbor, edge_key, edge_data_dict[edge_key]
+
+
+def _best_first_path(
+    graph: nx.MultiDiGraph,
+    max_depth: int,
+    priority,
+) -> Optional[AttackPath]:
+    """Return the optimal simple attack path under a heap priority.
+
+    priority(depth, cost, entry_index, nodes, edges) -> comparable key.
+    The heap pops states in priority order, so the first crown jewel popped
+    (excluding the trivial single-node stay) is globally optimal: every other
+    heap state — and any path extending it, since traversal costs are
+    non-negative — is ordered at or after it. Expansion is cycle-safe,
+    depth-bounded, and deterministic (sorted neighbors, sorted edge keys).
+    """
+    entry_points, crown_jewels = _entry_points_and_crowns(graph)
+    if not entry_points or not crown_jewels:
+        return None
+    heap: List[Tuple[Any, ...]] = []
+    for entry_index, entry in enumerate(entry_points):
+        heapq.heappush(
+            heap,
+            (priority(0, 0.0, entry_index, (entry,), ()), 0.0, entry_index, (entry,), (), 1.0),
+        )
+    while heap:
+        _, cost, entry_index, path_nodes, path_edges, prob = heapq.heappop(heap)
+        if path_nodes[-1] in crown_jewels and len(path_nodes) > 1:
+            return AttackPath(
+                id="path_0",
+                entry_point=path_nodes[0],
+                crown_jewel=path_nodes[-1],
+                nodes=list(path_nodes),
+                edges=list(path_edges),
+                hop_count=len(path_edges),
+                total_traversal_cost=cost,
+                total_probability=prob,
+            )
+        depth = len(path_edges)
+        if depth >= max_depth:
+            continue
+        visited = set(path_nodes)
+        for neighbor, _, edge_data in _ordered_extensions(graph, path_nodes, visited):
+            edge_cost = edge_data.get("traversal_cost", 0.0)
+            edge_prob = edge_data.get("probability", 0.0)
+            new_nodes = path_nodes + (neighbor,)
+            new_edges = path_edges + (edge_data["edge_id"],)
+            new_cost = cost + edge_cost
+            heapq.heappush(
+                heap,
+                (
+                    priority(
+                        depth + 1, new_cost, entry_index, new_nodes, new_edges,
+                    ),
+                    new_cost,
+                    entry_index,
+                    new_nodes,
+                    new_edges,
+                    prob * edge_prob,
+                ),
+            )
+    return None
+
+
 def get_shortest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[AttackPath]:
     """
     Get the shortest path (by hop count) from entry points to crown jewels.
+    The result is globally optimal: minimal hops, then minimal traversal
+    cost, then deterministic (entry order, node sequence, edge sequence).
     Args:
         graph: The canonical security graph (MultiDiGraph).
         max_depth: Maximum number of hops allowed.
     Returns:
         The shortest AttackPath, or None if no path exists.
     """
-    paths = find_attack_paths(graph, max_depth=max_depth, max_paths=1)
-    return paths[0] if paths else None
+    return _best_first_path(
+        graph,
+        max_depth,
+        lambda depth, cost, entry_index, nodes, edges: (
+            depth, cost, entry_index, nodes, edges,
+        ),
+    )
 def get_cheapest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[AttackPath]:
     """
     Get the cheapest path (by total traversal cost) from entry points to crown jewels.
+    The result is globally optimal within max_depth: minimal traversal cost,
+    then fewer hops, then deterministic (entry order, node sequence, edge
+    sequence). Exact for the project's non-negative traversal-cost model;
+    no arbitrary path-count cap is involved.
     Args:
         graph: The canonical security graph (MultiDiGraph).
         max_depth: Maximum number of hops allowed.
     Returns:
         The cheapest AttackPath, or None if no path exists.
     """
-    # We need to find all paths up to max_depth and then select the one with minimum cost.
-    # We'll set a reasonable max_paths to avoid too much computation.
-    paths = find_attack_paths(graph, max_depth=max_depth, max_paths=1000)
-    if not paths:
-        return None
-    # Sort by total traversal cost
-    paths.sort(key=lambda p: p.total_traversal_cost)
-    return paths[0]
+    return _best_first_path(
+        graph,
+        max_depth,
+        lambda depth, cost, entry_index, nodes, edges: (
+            cost, depth, entry_index, nodes, edges,
+        ),
+    )

@@ -89,7 +89,7 @@ export function AttackPathsPage() {
           <Select
             label="Mode"
             value={mode}
-            onChange={(e) => setMode(e.target.value as AttackPathMode)}
+            onValueChange={(value) => setMode(value as AttackPathMode)}
             options={[
               { value: 'all', label: 'All paths' },
               { value: 'shortest', label: 'Shortest' },

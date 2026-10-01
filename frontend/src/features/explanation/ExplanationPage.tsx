@@ -196,7 +196,7 @@ export function ExplanationPage() {
                 <Select
                   label="Finding"
                   value={findingId}
-                  onChange={(e) => setFindingId(e.target.value)}
+                  onValueChange={(value) => setFindingId(value)}
                   options={findings.map((f) => ({ value: f.id, label: `${f.id} (asset ${f.asset_id}, ${f.status})` }))}
                   className="max-w-md"
                 />

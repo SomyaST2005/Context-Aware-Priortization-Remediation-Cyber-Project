@@ -104,7 +104,7 @@ export function BlastRadiusPage() {
           <Select
             label="Source asset"
             value={sourceId}
-            onChange={(e) => setSourceId(e.target.value)}
+            onValueChange={(value) => setSourceId(value)}
             options={assets.map((a) => ({ value: a.id, label: `${a.name} (${a.id})` }))}
             placeholder={assets.length === 0 ? 'No assets' : 'Select asset'}
             disabled={assets.length === 0}
