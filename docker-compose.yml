@@ -1,0 +1,51 @@
+# Full application stack: FastAPI backend + nginx-served React frontend.
+#
+# Start everything:   docker compose up --build
+# Open the app:       http://localhost:8080
+# Stop everything:    docker compose down
+#
+# AI explanation works WITHOUT any key (deterministic fallback).
+# Optional Groq: create a local .env file with GROQ_API_KEY set; Compose
+# reads it for variable interpolation only (never baked into images).
+# Example .env:
+#   AI_PROVIDER=groq
+#   GROQ_API_KEY=your_actual_key_here
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      # Absolute SQLite path inside the persistent volume (never CWD-relative).
+      - DATABASE_URL=sqlite:////data/cybersecurity.db
+      # Safe default: deterministic fallback, no key required.
+      - AI_PROVIDER=${AI_PROVIDER:-none}
+      - AI_MODEL=${AI_MODEL:-openai/gpt-oss-120b}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - AI_TIMEOUT_SECONDS=${AI_TIMEOUT_SECONDS:-30}
+      - AI_MAX_RETRIES=${AI_MAX_RETRIES:-1}
+    volumes:
+      # Named volume: the database survives container recreation.
+      - db-data:/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:

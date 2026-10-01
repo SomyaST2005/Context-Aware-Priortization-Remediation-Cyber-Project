@@ -1,0 +1,39 @@
+# Docker build context exclusions (backend image uses the repo root as context).
+# Secrets and local state must never enter image layers.
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# Python caches / test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases (the container uses its own persistent volume)
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend build inputs/outputs (frontend has its own image + .dockerignore)
+frontend/node_modules/
+frontend/dist/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
+*.tmp
