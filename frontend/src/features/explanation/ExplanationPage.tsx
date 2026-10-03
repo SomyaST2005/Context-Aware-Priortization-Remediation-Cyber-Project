@@ -10,7 +10,7 @@ import type {
   RemediationActionResponse,
 } from '../../types/api';
 import { MAX_CANDIDATE_ACTIONS } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Select, Input } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Select, Input, PageHeader } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { ExplanationResult } from './ExplanationResult';
 
@@ -147,7 +147,7 @@ export function ExplanationPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">AI Explanation</h1>
+        <PageHeader title="AI Explanation" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to request explanations." /></CardBody></Card>
       </div>
     );
@@ -155,25 +155,23 @@ export function ExplanationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">AI Explanation</h1>
-        <p className="text-muted text-sm mt-1">
-          Explanations of deterministic analysis in {selectedScenario.name} — the backend assembles evidence and validates output
-        </p>
-      </div>
+      <PageHeader
+        title="AI Explanation"
+        description={`Explanations of deterministic analysis in ${selectedScenario.name}. The backend assembles the evidence and validates every claim; the status shows whether an AI model or a deterministic template wrote the text.`}
+      />
 
-      {/* Type tabs */}
-      <div className="flex gap-2" role="tablist" aria-label="Explanation type">
+      {/* Type selector */}
+      <div className="inline-flex gap-1 p-1 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)]" role="tablist" aria-label="Explanation type">
         {(['finding', 'simulation', 'optimization'] as Tab[]).map((t) => (
           <button
             key={t}
             role="tab"
             aria-selected={tab === t}
             onClick={() => switchTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === t
-                ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)] border border-[var(--color-accent)]'
-                : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-primary)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
             }`}
           >
             {t === 'finding' ? 'Finding' : t === 'simulation' ? 'Simulation' : 'Optimization'}

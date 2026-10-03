@@ -7,7 +7,7 @@ import type {
   RemediationActionResponse,
 } from '../../types/api';
 import { MAX_CANDIDATE_ACTIONS } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Input } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Input, PageHeader, Toolbar, StatCard } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { useScenarioGraph } from '../graph/useScenarioGraph';
 import { CytoscapeCanvas, type Highlight } from '../graph/CytoscapeCanvas';
@@ -108,7 +108,7 @@ export function OptimizationPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">Budget Optimization</h1>
+        <PageHeader title="Budget Optimization" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to optimize remediations." /></CardBody></Card>
       </div>
     );
@@ -123,29 +123,26 @@ export function OptimizationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Budget Optimization</h1>
-          <p className="text-muted text-sm mt-1">
-            Exact subset enumeration in {selectedScenario.name} — backend selects by crown-jewel paths (O1), then feasibility (O2), then cost
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Input label="Budget" type="number" min={0} step="any" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-32" />
-          <Input label="Max depth" type="number" min={0} value={maxDepth} onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))} className="w-28" />
-          <Input label="Max paths" type="number" min={1} value={maxPaths} onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))} className="w-28" />
-          <Button variant="primary" onClick={run} loading={isRunning} disabled={candidateIds.length === 0}>
-            Optimize ({candidateIds.length}/{MAX_CANDIDATE_ACTIONS})
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={candidateIds.length === 0}
-            onClick={() => navigate(`/explanation?type=optimization&candidates=${candidateIds.map(encodeURIComponent).join(',')}&budget=${budget}`)}
-          >
-            Explain
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Budget Optimization"
+        description={`Best set of fixes within a budget for ${selectedScenario.name}. Exact subset enumeration; the backend ranks by crown-jewel paths removed (O1), then feasibility reduced (O2), then lowest cost.`}
+      />
+
+      <Toolbar>
+        <Input label="Budget" type="number" min={0} step="any" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-32" />
+        <Input label="Max depth" type="number" min={0} value={maxDepth} onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))} className="w-28" />
+        <Input label="Max paths" type="number" min={1} value={maxPaths} onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))} className="w-28" />
+        <Button variant="primary" onClick={run} loading={isRunning} disabled={candidateIds.length === 0}>
+          Optimize ({candidateIds.length}/{MAX_CANDIDATE_ACTIONS})
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={candidateIds.length === 0}
+          onClick={() => navigate(`/explanation?type=optimization&candidates=${candidateIds.map(encodeURIComponent).join(',')}&budget=${budget}`)}
+        >
+          Explain
+        </Button>
+      </Toolbar>
 
       {clientError && (
         <Card><CardBody><p className="text-sm text-[var(--color-danger)]" role="alert">{clientError}</p></CardBody></Card>
@@ -182,7 +179,7 @@ export function OptimizationPage() {
                   {actions.map((a) => {
                     const checked = candidateIds.includes(a.id);
                     return (
-                      <tr key={a.id} className={checked ? 'bg-[var(--color-accent-bg)]' : undefined}>
+                      <tr key={a.id} className={checked ? 'row-selected' : undefined}>
                         <td>
                           <input
                             type="checkbox"
@@ -214,43 +211,56 @@ export function OptimizationPage() {
 
       {result && (
         <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <StatCard label="Budget" value={num(result.budget)} tone="neutral" />
+            <StatCard label="Total cost" value={num(result.selected_total_cost)} hint={result.within_budget ? 'Within budget' : 'Over budget'} tone={result.within_budget ? 'success' : 'danger'} />
+            <StatCard label="Objective O1" value={num(result.objective_o1)} hint="Crown-jewel paths" />
+            <StatCard label="Objective O2" value={num(result.objective_o2)} hint="Feasibility reduced" />
+            <StatCard label="Subsets evaluated" value={result.evaluated_subset_count} tone="neutral" />
+            <StatCard label="Selected actions" value={result.selected_action_ids.length} tone="success" />
+          </div>
+
           <Card>
-            <CardHeader><h2 className="section-title">Selection Result</h2></CardHeader>
-            <CardBody>
-              <div className="mb-3">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="section-title">Selected Actions</h2>
                 <Badge variant={result.selection_reason === 'optimal_selection' ? 'success' : 'warning'}>
                   {result.selection_reason}
                 </Badge>
-                <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                  {REASON_LABELS[result.selection_reason] ?? result.selection_reason}
-                </p>
               </div>
-              <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-                <div><dt className="text-muted text-xs">Budget</dt><dd className="font-mono text-lg">{num(result.budget)}</dd></div>
-                <div><dt className="text-muted text-xs">Total cost</dt><dd className="font-mono text-lg">{num(result.selected_total_cost)}</dd></div>
-                <div><dt className="text-muted text-xs">Within budget</dt><dd>{result.within_budget ? <Badge variant="success">Yes</Badge> : <Badge variant="critical">No</Badge>}</dd></div>
-                <div><dt className="text-muted text-xs">Objective O1</dt><dd className="font-mono text-lg">{num(result.objective_o1)}</dd></div>
-                <div><dt className="text-muted text-xs">Objective O2</dt><dd className="font-mono text-lg">{num(result.objective_o2)}</dd></div>
-                <div><dt className="text-muted text-xs">Subsets evaluated</dt><dd className="font-mono text-lg">{result.evaluated_subset_count}</dd></div>
-              </dl>
-              <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            </CardHeader>
+            <CardBody>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {REASON_LABELS[result.selection_reason] ?? result.selection_reason}
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                 Objective: <span className="font-mono">{result.objective}</span> — exact enumeration,{' '}
                 {result.infeasible_subset_count} infeasible / {result.over_budget_subset_count} over budget.
               </p>
-              <div className="mt-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
-                  Selected actions ({result.selected_action_ids.length})
-                </h3>
-                {result.selected_action_ids.length === 0 ? (
-                  <p className="text-sm text-[var(--color-text-muted)]">Empty selection — baseline state retained.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.selected_action_ids.map((id) => (
-                      <Badge key={id} variant="success">{id}</Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {result.selected_action_ids.length === 0 ? (
+                <p className="mt-4 text-sm text-[var(--color-text-muted)]">Empty selection — baseline state retained.</p>
+              ) : (
+                <div className="mt-4 table-container rounded-lg border border-[var(--color-border-primary)]">
+                  <table className="table">
+                    <thead><tr><th>Action</th><th>Type</th><th>Cost</th></tr></thead>
+                    <tbody>
+                      {result.selected_action_ids.map((id) => {
+                        const a = actions.find((x) => x.id === id);
+                        return (
+                          <tr key={id}>
+                            <td>
+                              <p className="font-medium">{a?.title ?? id}</p>
+                              <p className="font-mono text-xs text-[var(--color-text-muted)]">{id}</p>
+                            </td>
+                            <td>{a ? <Badge variant="default">{a.action_type}</Badge> : '—'}</td>
+                            <td className="font-mono">{a ? num(a.estimated_cost) : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {graph && result.selected_action_ids.length > 0 && (
                 <div className="mt-4">
                   <p className="text-xs text-[var(--color-text-muted)] mb-2">Selected-action targets highlighted on the baseline graph:</p>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Bug, Link2, Server, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { ScenarioResponse } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader, StatCard } from '../../components/ui';
 import { LoadingSpinner, EmptyState, ErrorState } from '../../components/ui';
 
 export function ScenarioPage() {
@@ -66,9 +67,7 @@ export function ScenarioPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Scenario</h1>
-        </div>
+        <PageHeader title="Scenario" />
         <Card>
           <CardBody>
             <EmptyState
@@ -89,9 +88,7 @@ export function ScenarioPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Scenario</h1>
-        </div>
+        <PageHeader title="Scenario" />
         <div className="flex items-center justify-center min-h-[300px]">
           <LoadingSpinner size="lg" />
         </div>
@@ -102,9 +99,7 @@ export function ScenarioPage() {
   if (error || !scenario) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Scenario</h1>
-        </div>
+        <PageHeader title="Scenario" />
         <Card>
           <CardBody>
             <ErrorState
@@ -132,79 +127,34 @@ export function ScenarioPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">{scenario.name}</h1>
-          <p className="text-muted text-sm mt-1">Scenario ID: <code className="font-mono text-xs bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">{scenario.id}</code></p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="success">Active</Badge>
-          <Button variant="secondary" size="sm" onClick={refreshScenarios}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={scenario.name}
+        description={
+          <>
+            Scenario ID: <code className="font-mono text-xs bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">{scenario.id}</code>
+          </>
+        }
+        actions={
+          <>
+            <Badge variant="success">Active</Badge>
+            <Button variant="secondary" size="sm" onClick={refreshScenarios}>
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {/* Scenario Info & Counts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardBody className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[var(--color-accent-bg)] flex items-center justify-center text-[var(--color-accent)] flex-shrink-0">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-2xl font-semibold text-[var(--color-text-primary)]">{assetCount ?? '—'}</h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">Assets</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[var(--color-warning-bg)] flex items-center justify-center text-[var(--color-warning)] flex-shrink-0">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104l-.233 1.22a12.06 12.06 0 000 2.93l.233 1.22m0 0l.233 1.22a12.06 12.06 0 000 2.93l-.233 1.22m0 0l-.233 1.22a12.06 12.06 0 010 2.93l.233 1.22m0-14.66l12 3.217" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-2xl font-semibold text-[var(--color-text-primary)]">{findingCount ?? '—'}</h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">Findings</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[var(--color-success-bg)] flex items-center justify-center text-[var(--color-success)] flex-shrink-0">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-2xl font-semibold text-[var(--color-text-primary)]">{edgeCount ?? '—'}</h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">Network Edges</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-[var(--color-critical)]/10 flex items-center justify-center text-[var(--color-critical)] flex-shrink-0">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                {entryPointCount ?? '—'} / {crownJewelCount ?? '—'}
-              </h3>
-              <p className="text-sm text-[var(--color-text-secondary)]">Entry points / Crown jewels</p>
-            </div>
-          </CardBody>
-        </Card>
+        <StatCard label="Assets" value={assetCount ?? '—'} icon={<Server className="w-4 h-4" />} />
+        <StatCard label="Findings" value={findingCount ?? '—'} icon={<Bug className="w-4 h-4" />} tone="warning" />
+        <StatCard label="Network edges" value={edgeCount ?? '—'} icon={<Link2 className="w-4 h-4" />} tone="neutral" />
+        <StatCard
+          label="Entry points / Crown jewels"
+          value={`${entryPointCount ?? '—'} / ${crownJewelCount ?? '—'}`}
+          icon={<ShieldCheck className="w-4 h-4" />}
+          tone="danger"
+        />
       </div>
 
       {/* Details */}

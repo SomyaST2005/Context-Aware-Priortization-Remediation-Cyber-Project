@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { FindingResponse } from '../../types/api';
-import { Card, CardBody, Badge, Select, Input, Button } from '../../components/ui';
+import { Card, CardBody, Badge, Select, Input, Button, PageHeader } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 
 export function FindingsPage() {
@@ -52,9 +52,7 @@ export function FindingsPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Findings</h1>
-        </div>
+        <PageHeader title="Findings" />
         <Card>
           <CardBody>
             <EmptyState
@@ -76,9 +74,7 @@ export function FindingsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Findings</h1>
-        </div>
+        <PageHeader title="Findings" />
         <PageLoading message="Loading findings..." />
       </div>
     );
@@ -87,9 +83,7 @@ export function FindingsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Findings</h1>
-        </div>
+        <PageHeader title="Findings" />
         <Card>
           <CardBody>
             <ErrorState
@@ -119,32 +113,31 @@ export function FindingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Findings</h1>
-          <p className="text-muted text-sm mt-1">
-            {filteredFindings.length} of {findings.length} findings in {selectedScenario.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            placeholder="Search by ID, asset, or vulnerability..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64"
-          />
-          <Select
-            value={filterStatus}
-            onValueChange={(value) => setFilterStatus(value)}
-            options={[
-              { value: 'all', label: 'All Statuses' },
-              ...statuses.map((s) => ({ value: s, label: s.replace('_', ' ').toUpperCase() })),
-            ]}
-            placeholder="Filter by status"
-            className="w-40"
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Findings"
+        description={`${filteredFindings.length} of ${findings.length} findings in ${selectedScenario.name}`}
+        actions={
+          <>
+            <Input
+              placeholder="Search by ID, asset, or vulnerability..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-72"
+              aria-label="Search findings"
+            />
+            <Select
+              value={filterStatus}
+              onValueChange={(value) => setFilterStatus(value)}
+              options={[
+                { value: 'all', label: 'All Statuses' },
+                ...statuses.map((s) => ({ value: s, label: s.replace('_', ' ').toUpperCase() })),
+              ]}
+              placeholder="Filter by status"
+              className="w-44"
+            />
+          </>
+        }
+      />
 
       {filteredFindings.length === 0 ? (
         <Card>

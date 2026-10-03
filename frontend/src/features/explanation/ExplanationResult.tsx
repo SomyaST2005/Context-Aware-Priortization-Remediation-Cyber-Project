@@ -26,6 +26,12 @@ const STATUS_COPY: Record<
   },
 };
 
+const BANNER_BORDER: Record<'success' | 'warning' | 'critical', string> = {
+  success: 'border-l-[var(--color-success)]',
+  warning: 'border-l-[var(--color-warning)]',
+  critical: 'border-l-[var(--color-critical)]',
+};
+
 function EvidenceRefs({ refs }: { refs: ExplanationClaimResponse['evidence_refs'] }) {
   if (refs.length === 0) return null;
   return (
@@ -33,10 +39,12 @@ function EvidenceRefs({ refs }: { refs: ExplanationClaimResponse['evidence_refs'
       {refs.map((r) => (
         <span
           key={r.ref_id}
-          className="font-mono text-xs bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded"
+          className="inline-flex items-center gap-1.5 font-mono text-xs bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)] px-1.5 py-0.5 rounded-md"
           title={`${r.source_path} = ${String(r.value ?? 'n/a')}`}
         >
-          {r.ref_id}: {r.source_path} = {String(r.value ?? 'n/a')}
+          <span className="text-[var(--color-accent)] font-semibold">{r.ref_id}</span>
+          <span className="text-[var(--color-text-secondary)]">{r.source_path}</span>
+          <span className="text-[var(--color-text-primary)]">= {String(r.value ?? 'n/a')}</span>
         </span>
       ))}
     </div>
@@ -78,7 +86,7 @@ export function ExplanationResult({ explanation }: { explanation: ExplanationRes
   const status = STATUS_COPY[explanation.status];
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className={`border-l-4 ${BANNER_BORDER[status.variant]}`}>
         <CardBody>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={status.variant}>{explanation.status}</Badge>

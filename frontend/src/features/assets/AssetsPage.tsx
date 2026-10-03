@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { AssetResponse } from '../../types/api';
-import { Card, CardBody, Badge, Select, Button } from '../../components/ui';
+import { Card, CardBody, Badge, Select, Button, PageHeader } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 
 export function AssetsPage() {
@@ -48,9 +48,7 @@ export function AssetsPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Assets</h1>
-        </div>
+        <PageHeader title="Assets" />
         <Card>
           <CardBody>
             <EmptyState
@@ -71,9 +69,7 @@ export function AssetsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Assets</h1>
-        </div>
+        <PageHeader title="Assets" />
         <PageLoading message="Loading assets..." />
       </div>
     );
@@ -82,9 +78,7 @@ export function AssetsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Assets</h1>
-        </div>
+        <PageHeader title="Assets" />
         <Card>
           <CardBody>
             <ErrorState
@@ -102,52 +96,36 @@ export function AssetsPage() {
     );
   }
 
-  const getSeverityBadge = (type: AssetResponse['type']) => {
-    const badgeMap: Record<string, 'default' | 'critical' | 'high' | 'medium' | 'low' | 'none' | 'success' | 'warning'> = {
-      database: 'critical',
-      domain_controller: 'critical',
-      web_server: 'high',
-      api_gateway: 'high',
-      app_server: 'medium',
-      identity_provider: 'medium',
-      workstation: 'low',
-      cloud_storage: 'low',
-    };
-    return badgeMap[type] || 'default';
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Assets</h1>
-          <p className="text-muted text-sm mt-1">
-            {filteredAssets.length} of {assets.length} assets in {selectedScenario.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={filterType}
-            onValueChange={(value) => setFilterType(value)}
-            options={[
-              { value: 'all', label: 'All Types' },
-              ...types.map((t) => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
-            ]}
-            placeholder="Filter by type"
-            className="w-48"
-          />
-          <Select
-            value={filterZone}
-            onValueChange={(value) => setFilterZone(value)}
-            options={[
-              { value: 'all', label: 'All Zones' },
-              ...zones.map((z) => ({ value: z, label: z.replace('_', ' ').toUpperCase() })),
-            ]}
-            placeholder="Filter by zone"
-            className="w-48"
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Assets"
+        description={`${filteredAssets.length} of ${assets.length} assets in ${selectedScenario.name}`}
+        actions={
+          <>
+            <Select
+              value={filterType}
+              onValueChange={(value) => setFilterType(value)}
+              options={[
+                { value: 'all', label: 'All Types' },
+                ...types.map((t) => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
+              ]}
+              placeholder="Filter by type"
+              className="w-48"
+            />
+            <Select
+              value={filterZone}
+              onValueChange={(value) => setFilterZone(value)}
+              options={[
+                { value: 'all', label: 'All Zones' },
+                ...zones.map((z) => ({ value: z, label: z.replace('_', ' ').toUpperCase() })),
+              ]}
+              placeholder="Filter by zone"
+              className="w-48"
+            />
+          </>
+        }
+      />
 
       {filteredAssets.length === 0 ? (
         <Card>
@@ -181,12 +159,17 @@ export function AssetsPage() {
                       <td className="font-mono text-sm">{asset.id}</td>
                       <td className="font-medium">{asset.name}</td>
                       <td>
-                        <Badge variant={getSeverityBadge(asset.type)}>
+                        <Badge variant="default">
                           {asset.type.replace('_', ' ').toUpperCase()}
                         </Badge>
                       </td>
                       <td>
-                        <span className="font-mono">{asset.criticality.toFixed(1)}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden" aria-hidden="true">
+                            <div className="h-full rounded-full bg-[var(--color-accent)]" style={{ width: `${Math.max(0, Math.min(10, asset.criticality)) * 10}%` }} />
+                          </div>
+                          <span className="font-mono">{asset.criticality.toFixed(1)}</span>
+                        </div>
                       </td>
                       <td>
                         <Badge variant="default">{asset.environment.toUpperCase()}</Badge>

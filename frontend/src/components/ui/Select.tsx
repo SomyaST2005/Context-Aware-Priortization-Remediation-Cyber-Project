@@ -22,9 +22,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const helperId = `${selectId}-helper`;
 
     return (
-      <div className="w-full">
+      <div>
         {label && (
-          <label htmlFor={selectId} className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
+          <label htmlFor={selectId} className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">
             {label}
           </label>
         )}
@@ -38,18 +38,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           >
             <SelectPrimitive.Value placeholder={placeholder} />
             <SelectPrimitive.Icon>
-              <ChevronDownIcon className="w-4 h-4 text-[var(--color-text-muted)]" />
+              <ChevronDownIcon className="w-4 h-4 shrink-0 text-[var(--color-text-muted)]" />
             </SelectPrimitive.Icon>
           </SelectPrimitive.Trigger>
           <SelectPrimitive.Portal>
-            <SelectPrimitive.Content className="bg-[var(--color-bg-card)] border border-[var(--color-border-primary)] rounded-md shadow-lg p-1 max-h-60 overflow-auto">
+            <SelectPrimitive.Content className="z-[100] bg-[var(--color-bg-card)] border border-[var(--color-border-primary)] rounded-lg shadow-lg p-1 max-h-60 overflow-auto">
               <SelectPrimitive.Viewport>
                 <SelectPrimitive.Group>
                   {options.map((option) => (
                     <SelectPrimitive.Item
                       key={option.value}
                       value={option.value}
-                      className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-3 pr-8 text-sm outline-none focus:bg-[var(--color-accent-bg)] focus:text-[var(--color-accent)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                      className="relative flex w-full cursor-default select-none items-center rounded-md py-1.5 pl-3 pr-8 text-sm outline-none focus:bg-[var(--color-accent-bg)] focus:text-[var(--color-accent)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                     >
                       <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                       <SelectPrimitive.ItemIndicator>
