@@ -7,7 +7,7 @@ import type {
   SimulationResponse,
 } from '../../types/api';
 import { DEFERRED_ACTION_TYPES, MVP_ACTION_TYPES } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Input } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Input, PageHeader, Toolbar } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { useScenarioGraph } from '../graph/useScenarioGraph';
 import { CytoscapeCanvas, EMPTY_HIGHLIGHT, type Highlight } from '../graph/CytoscapeCanvas';
@@ -95,7 +95,7 @@ export function RemediationPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">Remediation Simulation</h1>
+        <PageHeader title="Remediation Simulation" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to simulate remediations." /></CardBody></Card>
       </div>
     );
@@ -107,28 +107,25 @@ export function RemediationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Remediation Simulation</h1>
-          <p className="text-muted text-sm mt-1">
-            What-if simulation on an immutable baseline copy in {selectedScenario.name} — backend computes everything
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Input label="Max depth" type="number" min={0} value={maxDepth} onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))} className="w-28" />
-          <Input label="Max paths" type="number" min={1} value={maxPaths} onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))} className="w-28" />
-          <Button variant="primary" onClick={run} loading={isRunning} disabled={selectedIds.length === 0}>
-            Simulate ({selectedIds.length})
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={selectedIds.length === 0}
-            onClick={() => navigate(`/explanation?type=simulation&actions=${selectedIds.map(encodeURIComponent).join(',')}`)}
-          >
-            Explain
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Remediation Simulation"
+        description={`What changes if these fixes are applied? Runs on an immutable copy of the baseline in ${selectedScenario.name} — the backend computes every number.`}
+      />
+
+      <Toolbar>
+        <Input label="Max depth" type="number" min={0} value={maxDepth} onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))} className="w-28" />
+        <Input label="Max paths" type="number" min={1} value={maxPaths} onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))} className="w-28" />
+        <Button variant="primary" onClick={run} loading={isRunning} disabled={selectedIds.length === 0}>
+          Simulate ({selectedIds.length})
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={selectedIds.length === 0}
+          onClick={() => navigate(`/explanation?type=simulation&actions=${selectedIds.map(encodeURIComponent).join(',')}`)}
+        >
+          Explain
+        </Button>
+      </Toolbar>
 
       {isLoadingActions ? (
         <PageLoading message="Loading remediation actions..." />
@@ -166,7 +163,7 @@ export function RemediationPage() {
                     const checked = selectedIds.includes(a.id);
                     const supported = isSupported(a);
                     return (
-                      <tr key={a.id} className={checked ? 'bg-[var(--color-accent-bg)]' : undefined}>
+                      <tr key={a.id} className={checked ? 'row-selected' : undefined}>
                         <td>
                           <input
                             type="checkbox"
@@ -213,11 +210,21 @@ export function RemediationPage() {
 
       {result && (
         <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+            <Badge variant="default">Baseline</Badge>
+            <span aria-hidden="true">→</span>
+            <Badge variant="info">{result.steps.length} action{result.steps.length === 1 ? '' : 's'} applied</Badge>
+            <span aria-hidden="true">→</span>
+            <Badge variant="success">Simulated state</Badge>
+            <span className="ml-2 font-mono text-xs text-[var(--color-text-muted)] break-all">
+              {result.steps.map((st) => st.action.action_id).join(', ')}
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Attack paths" before={result.baseline.total_attack_paths} after={result.final.total_attack_paths} />
-            <StatCard label="Crown-jewel paths" before={result.baseline.crown_jewel_path_count} after={result.final.crown_jewel_path_count} />
-            <StatCard label="Blast affected assets" before={result.baseline.blast_affected_assets} after={result.final.blast_affected_assets} />
-            <StatCard label="Prioritized findings" before={result.baseline.prioritization_count} after={result.final.prioritization_count} />
+            <DeltaStat label="Attack paths" before={result.baseline.total_attack_paths} after={result.final.total_attack_paths} />
+            <DeltaStat label="Crown-jewel paths" before={result.baseline.crown_jewel_path_count} after={result.final.crown_jewel_path_count} />
+            <DeltaStat label="Blast affected assets" before={result.baseline.blast_affected_assets} after={result.final.blast_affected_assets} />
+            <DeltaStat label="Prioritized findings" before={result.baseline.prioritization_count} after={result.final.prioritization_count} />
           </div>
 
           <Card>
@@ -270,18 +277,26 @@ export function RemediationPage() {
   );
 }
 
-function StatCard({ label, before, after }: { label: string; before: number; after: number }) {
+function DeltaStat({ label, before, after }: { label: string; before: number; after: number }) {
   const improved = after < before;
+  const worsened = after > before;
   return (
-    <Card>
-      <CardBody>
-        <p className="text-sm text-[var(--color-text-secondary)]">{label}</p>
-        <p className="mt-1 text-xl">
-          <span className="font-mono text-[var(--color-text-muted)]">{before}</span>
-          <span className="mx-2 text-[var(--color-text-muted)]">→</span>
-          <span className={`font-mono font-semibold ${improved ? 'text-[var(--color-success)]' : ''}`}>{after}</span>
-        </p>
-      </CardBody>
-    </Card>
+    <div className="card p-4">
+      <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-2 flex items-baseline gap-2 font-mono tabular-nums">
+        <span className="text-lg text-[var(--color-text-muted)]">{before}</span>
+        <span className="text-[var(--color-text-muted)]" aria-hidden="true">→</span>
+        <span
+          className={`text-2xl font-semibold ${
+            improved ? 'text-[var(--color-success)]' : worsened ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-primary)]'
+          }`}
+        >
+          {after}
+        </span>
+      </p>
+      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+        {improved ? 'Reduced' : worsened ? 'Increased' : 'No change'} (baseline → simulated)
+      </p>
+    </div>
   );
 }

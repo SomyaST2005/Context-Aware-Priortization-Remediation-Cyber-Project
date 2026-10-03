@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { AttackPathMode, AttackPathResponse } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Select, Input } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Select, Input, PageHeader, Toolbar } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { useScenarioGraph } from '../graph/useScenarioGraph';
 import { CytoscapeCanvas, EMPTY_HIGHLIGHT, type Highlight } from '../graph/CytoscapeCanvas';
@@ -65,7 +65,7 @@ export function AttackPathsPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">Attack Paths</h1>
+        <PageHeader title="Attack Paths" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to explore attack paths." /></CardBody></Card>
       </div>
     );
@@ -78,53 +78,54 @@ export function AttackPathsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Attack Paths</h1>
-          <p className="text-muted text-sm mt-1">
-            {pathsLoading ? 'Loading…' : `${paths.length} path${paths.length === 1 ? '' : 's'} in ${selectedScenario.name}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Select
-            label="Mode"
-            value={mode}
-            onValueChange={(value) => setMode(value as AttackPathMode)}
-            options={[
-              { value: 'all', label: 'All paths' },
-              { value: 'shortest', label: 'Shortest' },
-              { value: 'cheapest', label: 'Cheapest' },
-            ]}
-            className="w-36"
-          />
-          <Input
-            label="Max depth"
-            type="number"
-            min={0}
-            value={maxDepth}
-            onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))}
-            className="w-28"
-          />
-          <Input
-            label="Max paths"
-            type="number"
-            min={1}
-            value={maxPaths}
-            onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))}
-            className="w-28"
-          />
-          <Button variant="primary" onClick={() => setQueryKey((k) => k + 1)} loading={pathsLoading}>
-            Run
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Attack Paths"
+        description={
+          pathsLoading
+            ? 'Loading…'
+            : `${paths.length} path${paths.length === 1 ? '' : 's'} from entry points to crown jewels in ${selectedScenario.name}`
+        }
+      />
+
+      <Toolbar>
+        <Select
+          label="Mode"
+          value={mode}
+          onValueChange={(value) => setMode(value as AttackPathMode)}
+          options={[
+            { value: 'all', label: 'All paths' },
+            { value: 'shortest', label: 'Shortest' },
+            { value: 'cheapest', label: 'Cheapest' },
+          ]}
+          className="w-40"
+        />
+        <Input
+          label="Max depth"
+          type="number"
+          min={0}
+          value={maxDepth}
+          onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))}
+          className="w-28"
+        />
+        <Input
+          label="Max paths"
+          type="number"
+          min={1}
+          value={maxPaths}
+          onChange={(e) => setMaxPaths(Math.max(1, Number(e.target.value)))}
+          className="w-28"
+        />
+        <Button variant="primary" onClick={() => setQueryKey((k) => k + 1)} loading={pathsLoading}>
+          Run analysis
+        </Button>
+      </Toolbar>
 
       {graphLoading ? (
         <PageLoading message="Loading security graph..." />
       ) : graphError || !graph ? (
         <Card><CardBody><ErrorState title="Failed to Load Graph" description={graphError ?? 'Unknown error'} action={<Button variant="primary" onClick={retryGraph}>Retry</Button>} /></CardBody></Card>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
           <Card className="xl:col-span-2">
             <CardHeader><h2 className="section-title">Security Graph</h2></CardHeader>
             <CardBody>
@@ -157,30 +158,49 @@ export function AttackPathsPage() {
               ) : paths.length === 0 ? (
                 <div className="p-6"><EmptyState title="No Attack Paths" description="No entry-point to crown-jewel paths exist for this scenario and depth. This is a valid result, not an error." /></div>
               ) : (
-                <ul className="divide-y divide-[var(--color-border-primary)] max-h-[560px] overflow-y-auto">
-                  {paths.map((p) => {
+                <ul className="p-3 space-y-3 max-h-[640px] overflow-y-auto">
+                  {paths.map((p, i) => {
                     const active = p.id === selectedPathId;
+                    const pct = Math.max(2, Math.min(100, p.total_probability * 100));
                     return (
                       <li key={p.id}>
                         <button
                           type="button"
                           onClick={() => setSelectedPathId(active ? null : p.id)}
                           aria-pressed={active}
-                          className={`w-full text-left px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)] ${active ? 'bg-[var(--color-accent-bg)]' : ''}`}
+                          className={`w-full text-left rounded-xl border p-4 transition-all hover:border-[var(--color-accent)] ${
+                            active
+                              ? 'border-[var(--color-accent)] bg-[var(--color-accent-bg)] shadow-lg'
+                              : 'border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)]'
+                          }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-sm font-semibold">{p.id}</span>
-                            <Badge variant="default">{p.hop_count} hops</Badge>
+                            <span className="text-sm font-semibold">Path {i + 1}</span>
+                            <Badge variant="default">{p.hop_count} {p.hop_count === 1 ? 'hop' : 'hops'}</Badge>
                           </div>
-                          <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-1 break-all">
-                            {p.entry_point} → {p.crown_jewel}
-                          </p>
-                          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2 text-xs">
-                            <div className="flex justify-between"><dt className="text-muted">Cost</dt><dd className="font-mono">{p.total_traversal_cost.toFixed(2)}</dd></div>
-                            <div className="flex justify-between"><dt className="text-muted">Prob</dt><dd className="font-mono">{p.total_probability.toFixed(3)}</dd></div>
-                          </dl>
+
+                          <div className="flex items-center gap-2 mt-3 text-xs font-mono">
+                            <span className="px-2 py-1 rounded-md bg-[#10281d] text-[#bbf7d0] border border-[#4ade80]/40 truncate">{p.entry_point}</span>
+                            <span className="text-[var(--color-text-muted)]" aria-hidden="true">→</span>
+                            <span className="px-2 py-1 rounded-md bg-[#33270c] text-[#fef3c7] border border-[#fbbf24]/40 truncate">{p.crown_jewel}</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted">Attacker cost</p>
+                              <p className="font-mono text-base mt-0.5">{p.total_traversal_cost.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted">Success probability</p>
+                              <p className="font-mono text-base mt-0.5">{(p.total_probability * 100).toFixed(1)}%</p>
+                              <div className="h-1.5 mt-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
+                                <div className="h-full rounded-full bg-[var(--color-danger)]" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          </div>
+
                           {active && (
-                            <p className="font-mono text-xs text-[var(--color-text-muted)] mt-2 break-all">
+                            <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-4 pt-3 border-t border-[var(--color-border-primary)] leading-relaxed break-words">
                               {p.nodes.join(' → ')}
                             </p>
                           )}

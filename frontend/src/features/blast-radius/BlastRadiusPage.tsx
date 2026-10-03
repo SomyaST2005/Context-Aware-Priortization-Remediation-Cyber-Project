@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { GitBranch, Radar } from 'lucide-react';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { AssetResponse, BlastRadiusResponse } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Select, Input } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Select, Input, PageHeader, Toolbar, StatCard } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { useScenarioGraph } from '../graph/useScenarioGraph';
 import { CytoscapeCanvas, EMPTY_HIGHLIGHT, type Highlight } from '../graph/CytoscapeCanvas';
@@ -81,7 +82,7 @@ export function BlastRadiusPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">Blast Radius</h1>
+        <PageHeader title="Blast Radius" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to analyze blast radius." /></CardBody></Card>
       </div>
     );
@@ -93,36 +94,33 @@ export function BlastRadiusPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Blast Radius</h1>
-          <p className="text-muted text-sm mt-1">
-            Downstream reachability from a compromised asset in {selectedScenario.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Select
-            label="Source asset"
-            value={sourceId}
-            onValueChange={(value) => setSourceId(value)}
-            options={assets.map((a) => ({ value: a.id, label: `${a.name} (${a.id})` }))}
-            placeholder={assets.length === 0 ? 'No assets' : 'Select asset'}
-            disabled={assets.length === 0}
-            className="w-64"
-          />
-          <Input
-            label="Max depth"
-            type="number"
-            min={0}
-            value={maxDepth}
-            onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))}
-            className="w-28"
-          />
-          <Button variant="primary" onClick={() => setQueryKey((k) => k + 1)} loading={isLoading} disabled={!sourceId}>
-            Compute
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Blast Radius"
+        description={`If an asset is compromised, what can become reachable downstream? Scenario: ${selectedScenario.name}`}
+      />
+
+      <Toolbar>
+        <Select
+          label="Compromised asset"
+          value={sourceId}
+          onValueChange={(value) => setSourceId(value)}
+          options={assets.map((a) => ({ value: a.id, label: `${a.name} (${a.id})` }))}
+          placeholder={assets.length === 0 ? 'No assets' : 'Select asset'}
+          disabled={assets.length === 0}
+          className="w-72"
+        />
+        <Input
+          label="Max depth"
+          type="number"
+          min={0}
+          value={maxDepth}
+          onChange={(e) => setMaxDepth(Math.max(0, Number(e.target.value)))}
+          className="w-28"
+        />
+        <Button variant="primary" onClick={() => setQueryKey((k) => k + 1)} loading={isLoading} disabled={!sourceId}>
+          Compute blast radius
+        </Button>
+      </Toolbar>
 
       {graphLoading ? (
         <PageLoading message="Loading security graph..." />
@@ -153,7 +151,7 @@ export function BlastRadiusPage() {
           </Card>
 
           <Card>
-            <CardHeader><h2 className="section-title">Result</h2></CardHeader>
+            <CardHeader><h2 className="section-title">Blast Radius Result</h2></CardHeader>
             <CardBody>
               {isLoading ? (
                 <p className="text-sm text-[var(--color-text-muted)]">Computing…</p>
@@ -165,11 +163,17 @@ export function BlastRadiusPage() {
                 <EmptyState title="No Affected Assets" description={`Asset ${result.source_asset} reaches no other assets within depth ${result.max_depth_reached}. Valid empty result.`} />
               ) : (
                 <div className="space-y-4">
-                  <dl className="grid grid-cols-2 gap-3 text-sm">
-                    <div><dt className="text-muted text-xs">Affected assets</dt><dd className="font-mono text-lg">{result.affected_asset_count}</dd></div>
-                    <div><dt className="text-muted text-xs">Max depth reached</dt><dd className="font-mono text-lg">{result.max_depth_reached}</dd></div>
-                  </dl>
-                  <div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatCard label="Affected assets" value={result.affected_asset_count} hint={`from ${result.source_asset}`} icon={<Radar className="w-4 h-4" />} />
+                    <StatCard label="Max depth" value={result.max_depth_reached} hint="hops from source" icon={<GitBranch className="w-4 h-4" />} tone="neutral" />
+                  </div>
+                  <div
+                    className={`rounded-lg border p-3 ${
+                      result.crown_jewels_reached.length > 0
+                        ? 'border-[var(--color-danger)]/40 bg-[var(--color-danger-bg)]'
+                        : 'border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)]'
+                    }`}
+                  >
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
                       Crown jewels reached ({result.crown_jewels_reached.length})
                     </h3>
@@ -192,7 +196,7 @@ export function BlastRadiusPage() {
                         <thead><tr><th>Asset</th><th>Depth</th><th>Min cost</th><th>Max prob</th></tr></thead>
                         <tbody>
                           {result.reachability_details.map((d) => (
-                            <tr key={d.asset_id} className={d.asset_id === result.source_asset ? 'bg-[var(--color-accent-bg)]' : undefined}>
+                            <tr key={d.asset_id} className={d.asset_id === result.source_asset ? 'row-selected' : undefined}>
                               <td className="font-mono text-xs">{d.asset_id}</td>
                               <td className="font-mono">{d.depth}</td>
                               <td className="font-mono">{d.min_traversal_cost.toFixed(2)}</td>

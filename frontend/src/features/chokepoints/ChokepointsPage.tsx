@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { GitBranch, Link2 } from 'lucide-react';
 import { useScenario } from '../../context/ScenarioContext';
 import { api } from '../../services/api';
 import type { ChokepointDetailResponse, ChokepointResponse } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button, Select } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, Select, PageHeader, Toolbar, StatCard } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 import { useScenarioGraph } from '../graph/useScenarioGraph';
 import { CytoscapeCanvas, EMPTY_HIGHLIGHT, type Highlight } from '../graph/CytoscapeCanvas';
@@ -61,7 +62,7 @@ export function ChokepointsPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <h1 className="page-title">Chokepoints</h1>
+        <PageHeader title="Chokepoints" />
         <Card><CardBody><EmptyState title="No Scenario Selected" description="Select a scenario from the header to analyze chokepoints." /></CardBody></Card>
       </div>
     );
@@ -73,30 +74,27 @@ export function ChokepointsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Chokepoints</h1>
-          <p className="text-muted text-sm mt-1">
-            Bottleneck entities by backend chokepoint score in {selectedScenario.name}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <Select
-            label="Entity type"
-            value={entityType}
-            onValueChange={(value) => setEntityType(value as 'all' | 'asset' | 'finding')}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'asset', label: 'Assets' },
-              { value: 'finding', label: 'Findings' },
-            ]}
-            className="w-40"
-          />
-          <Button variant="secondary" size="sm" onClick={() => setRetryKey((k) => k + 1)}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Chokepoints"
+        description={`Which entities sit on many attack paths? Fixing one of these cuts the most routes. Scenario: ${selectedScenario.name}`}
+      />
+
+      <Toolbar>
+        <Select
+          label="Entity type"
+          value={entityType}
+          onValueChange={(value) => setEntityType(value as 'all' | 'asset' | 'finding')}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'asset', label: 'Assets' },
+            { value: 'finding', label: 'Findings' },
+          ]}
+          className="w-40"
+        />
+        <Button variant="secondary" onClick={() => setRetryKey((k) => k + 1)}>
+          Refresh
+        </Button>
+      </Toolbar>
 
       {graphLoading || isLoading ? (
         <PageLoading message="Loading graph and chokepoints..." />
@@ -107,9 +105,9 @@ export function ChokepointsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card><CardBody><p className="text-2xl font-semibold font-mono">{data.total_entities_analyzed}</p><p className="text-sm text-[var(--color-text-secondary)]">Entities analyzed</p></CardBody></Card>
-            <Card><CardBody><p className="text-2xl font-semibold font-mono">{data.max_chokepoint_score.toFixed(3)}</p><p className="text-sm text-[var(--color-text-secondary)]">Max chokepoint score</p></CardBody></Card>
-            <Card><CardBody><p className="text-2xl font-semibold font-mono">{data.total_attack_paths_analyzed}</p><p className="text-sm text-[var(--color-text-muted)]">Attack paths analyzed</p></CardBody></Card>
+            <StatCard label="Entities analyzed" value={data.total_entities_analyzed} icon={<Link2 className="w-4 h-4" />} tone="neutral" />
+            <StatCard label="Max chokepoint score" value={data.max_chokepoint_score.toFixed(3)} hint="Higher = more attack paths pass through it" icon={<Link2 className="w-4 h-4" />} tone="warning" />
+            <StatCard label="Attack paths analyzed" value={data.total_attack_paths_analyzed} icon={<GitBranch className="w-4 h-4" />} />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -159,6 +157,9 @@ export function ChokepointsPage() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-mono text-sm break-all">{c.entity_id}</span>
                               <Badge variant={c.entity_type === 'asset' ? 'default' : 'warning'}>{c.entity_type}</Badge>
+                            </div>
+                            <div className="h-1.5 mt-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden" aria-hidden="true">
+                              <div className="h-full rounded-full bg-[var(--color-warning)]" style={{ width: `${Math.max(2, Math.min(1, c.chokepoint_score) * 100)}%` }} />
                             </div>
                             <dl className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2 text-xs">
                               <div className="flex justify-between"><dt className="text-muted">Score</dt><dd className="font-mono font-semibold">{c.chokepoint_score.toFixed(3)}</dd></div>

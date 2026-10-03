@@ -6,7 +6,7 @@ import type {
   PrioritizationResultResponse,
   VulnerabilitySeverity,
 } from '../../types/api';
-import { Card, CardHeader, CardBody, Badge, Button } from '../../components/ui';
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../../components/ui';
 import { EmptyState, ErrorState, PageLoading } from '../../components/ui';
 
 type Severity = VulnerabilitySeverity;
@@ -74,9 +74,7 @@ export function PrioritizationPage() {
   if (!selectedScenario) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Prioritization</h1>
-        </div>
+        <PageHeader title="Prioritization" />
         <Card>
           <CardBody>
             <EmptyState
@@ -92,9 +90,7 @@ export function PrioritizationPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Prioritization</h1>
-        </div>
+        <PageHeader title="Prioritization" />
         <PageLoading message="Computing contextual prioritization..." />
       </div>
     );
@@ -103,9 +99,7 @@ export function PrioritizationPage() {
   if (error || !data) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">Prioritization</h1>
-        </div>
+        <PageHeader title="Prioritization" />
         <Card>
           <CardBody>
             <ErrorState
@@ -125,27 +119,24 @@ export function PrioritizationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Prioritization</h1>
-          <p className="text-muted text-sm mt-1">
-            {data.returned_findings} of {data.total_findings} findings in {selectedScenario.name} —
-            backend operational ordering (rank preserved)
-          </p>
-        </div>
-        <Button variant="secondary" size="sm" onClick={() => setRetryKey((k) => k + 1)}>
-          Re-run
-        </Button>
-      </div>
+      <PageHeader
+        title="Prioritization"
+        description={`${data.returned_findings} of ${data.total_findings} findings in ${selectedScenario.name}, in backend operational order. Expand “Why here?” on any row to see the evidence behind its rank.`}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setRetryKey((k) => k + 1)}>
+            Re-run
+          </Button>
+        }
+      />
 
       {/* Ordering policy (backend-provided) */}
       <Card>
         <CardHeader>
-          <h2 className="section-title">Ordering Policy (backend)</h2>
+          <h2 className="section-title">Ordering Policy</h2>
         </CardHeader>
         <CardBody>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Operational ordering comes from this configured backend policy — it is not a
+            Rank comes from this configured backend policy: tiers first, then a weighted composite. It is not a
             universal risk score.
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -247,10 +238,14 @@ function PrioritizationRow({
   const colSpan = 12;
   return (
     <>
-      <tr>
-        <td className="font-mono font-semibold">#{item.operational_rank}</td>
-        <td className="font-mono text-sm">{p.finding_id}</td>
-        <td className="font-mono text-sm">{p.asset_id}</td>
+      <tr className={isExpanded ? 'row-selected' : undefined}>
+        <td>
+          <span className="inline-flex items-center justify-center min-w-7 h-6 px-1.5 rounded-md bg-[var(--color-accent-bg)] text-[var(--color-accent)] font-mono text-xs font-semibold">
+            #{item.operational_rank}
+          </span>
+        </td>
+        <td className="font-mono text-xs">{p.finding_id}</td>
+        <td className="font-mono text-xs">{p.asset_id}</td>
         <td>{severityBadge(p.severity_category)}</td>
         <td>
           {p.known_exploited ? (
@@ -279,7 +274,7 @@ function PrioritizationRow({
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan={colSpan} className="!whitespace-normal">
+          <td colSpan={colSpan} className="!whitespace-normal bg-[var(--color-bg-secondary)]">
             <EvidenceDetail item={item} />
           </td>
         </tr>
@@ -369,8 +364,8 @@ function EvidenceDetail({ item }: { item: PrioritizationResultResponse }) {
 
 function EvidenceGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] p-3">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+    <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-card)] p-3.5">
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)] mb-2.5">
         {title}
       </h4>
       <dl className="space-y-1.5">{children}</dl>
